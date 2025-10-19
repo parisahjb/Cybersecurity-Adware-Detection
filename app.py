@@ -988,7 +988,83 @@ def show_about():
         - AI/ML Research Scientist
         - Specialization: Deep Learning for Cybersecurity
         """)
+def engineer_features(raw_data):
+    """Convert raw features to engineered features that model expects"""
+    eng_data = {}
+    
+    # Basic features that are kept as-is
+    direct_features = ['cyclomatic', 'methods', 'classes', 'files', 'wmc', 'bytecode',
+                      'object_map', 'no_action', 'network_op', 'timeout_wake_lock',
+                      'catch', 'socket_timeout', 'dom_parser', 'scaled_bitmap',
+                      'http_clients', 'fileio_op', 'contr_views', 'not_contr_views',
+                      'unchecked_bundles', 'bundles', 'sqllite_op', 'lock_listener',
+                      'dis_method', 'con_no_socket_timeout', 'show_method', 'onkeydown',
+                      'setcontentview', 'bitmap_decode_op', 'apd', 'ppiv', 'cbo',
+                      'onbackpressed', 'create_method', 'pot_bad_token', 'start_service']
+    
+    for feat in direct_features:
+        eng_data[feat] = raw_data.get(feat, 0)
+    
+    # Engineered features
+    eng_data['network_security_score'] = (
+        0.4 * raw_data.get('network_op', 0) + 
+        0.4 * raw_data.get('http_clients', 0) + 
+        0.2 * raw_data.get('con_timeout', 0)
+    )
+    
+    eng_data['ui_manipulation_score'] = (
+        raw_data.get('dis_method', 0) + 
+        raw_data.get('show_method', 0) + 
+        raw_data.get('setcontentview', 0) + 
+        raw_data.get('show_dialog', 0)
+    )
+    
+    eng_data['data_operation_score'] = (
+        raw_data.get('fileio_op', 0) * raw_data.get('sqllite_op', 0)
+    )
+    
+    eng_data['permission_score'] = (
+        raw_data.get('gps_use', 0) + 
+        raw_data.get('lock_listener', 0) + 
+        raw_data.get('timeout_wake_lock', 0)
+    )
+    
+    eng_data['exception_ratio'] = raw_data.get('catch', 0) / (raw_data.get('methods', 0) + 1)
+    eng_data['bytecode_per_method'] = raw_data.get('bytecode', 0) / (raw_data.get('methods', 0) + 1)
+    
+    # Polynomial features (products)
+    eng_data['poly_network_op http_clients'] = raw_data.get('network_op', 0) * raw_data.get('http_clients', 0)
+    eng_data['poly_network_op fileio_op'] = raw_data.get('network_op', 0) * raw_data.get('fileio_op', 0)
+    eng_data['poly_sqllite_op fileio_op'] = raw_data.get('sqllite_op', 0) * raw_data.get('fileio_op', 0)
+    eng_data['poly_http_clients fileio_op'] = raw_data.get('http_clients', 0) * raw_data.get('fileio_op', 0)
+    eng_data['poly_http_clients sqllite_op'] = raw_data.get('http_clients', 0) * raw_data.get('sqllite_op', 0)
+    eng_data['poly_network_op sqllite_op'] = raw_data.get('network_op', 0) * raw_data.get('sqllite_op', 0)
+    
+    eng_data['views_out_contr'] = raw_data.get('views_out_contr', 0)
+    eng_data['unregister_recev'] = raw_data.get('unregister_recev', 0)
+    eng_data['con_timeout'] = raw_data.get('con_timeout', 0)
+    
+    return eng_data
 
+def analyze_app(app_data, model, scaler, features):
+    """Analyze app with feature engineering"""
+    # Engineer features first
+    engineered_data = engineer_features(app_data)
+    
+    # Now prepare for prediction using engineered features
+    X = prepare_features_for_prediction(engineered_data, features)
+    X_scaled = scaler.transform(X)
+    
+    prediction = model.predict(X_scaled)[0]
+    probabilities = model.predict_proba(X_scaled)[0]
+    
+    return {
+        'prediction': prediction,
+        'label': 'ADWARE' if prediction == 1 else 'BENIGN',
+        'confidence': probabilities[prediction],
+        'adware_probability': probabilities[1],
+        'benign_probability': probabilities[0]
+    }
 # Run the application
 if __name__ == "__main__":
     main()
