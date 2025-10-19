@@ -172,16 +172,15 @@ if 'comparison_apps' not in st.session_state:
 
 @st.cache_resource
 def load_models():
-    """Load ML models and preprocessors - NO DUMMY DATA"""
+    """Load ML models and preprocessors - handles 50 feature model"""
     try:
         model = joblib.load('optimized_neural_network.pkl')
         scaler = joblib.load('scaler.pkl')
         features = joblib.load('feature_columns.pkl')
         importance_df = pd.read_csv('feature_importance_rf.csv')
         
-        # Verify features
-        if len(features) != 67:
-            st.warning(f"Expected 67 features but loaded {len(features)}")
+        # Log the actual number of features
+        st.sidebar.write(f"Model trained with {len(features)} features")
         
         return model, scaler, features, importance_df
     except FileNotFoundError as e:
@@ -201,16 +200,35 @@ def load_models():
 def prepare_features_for_prediction(app_data, feature_list):
     """Prepare feature vector in correct order for prediction"""
     feature_vector = []
+    
+    # Only use the features that the model was trained with
     for feature in feature_list:
-        if feature in app_data:
-            feature_vector.append(float(app_data[feature]))
+        if isinstance(app_data, pd.Series):
+            value = app_data.get(feature, 0.0)
+        elif isinstance(app_data, dict):
+            value = app_data.get(feature, 0.0)
         else:
+            value = 0.0
+        
+        # Ensure numeric value
+        try:
+            feature_vector.append(float(value))
+        except:
             feature_vector.append(0.0)
+    
     return np.array(feature_vector).reshape(1, -1)
 
+
 def analyze_app(app_data, model, scaler, features):
-    """Analyze a single app"""
+    """Analyze a single app - works with model's expected features"""
+    # IMPORTANT: Only use the features the model expects (50 features)
     X = prepare_features_for_prediction(app_data, features)
+    
+    # Verify we have the right number of features
+    if X.shape[1] != len(features):
+        st.error(f"Feature mismatch: prepared {X.shape[1]} features but model expects {len(features)}")
+        return None
+    
     X_scaled = scaler.transform(X)
     
     prediction = model.predict(X_scaled)[0]
@@ -331,12 +349,12 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     with col4:
-        st.markdown("""
-        <div class="metric-card">
-            <h3 style="margin: 0;">67</h3>
-            <p style="margin: 0; opacity: 0.9;">Features</p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class="metric-card">
+        <h3 style="margin: 0;">50</h3>  <!-- Change from 67 to 50 -->
+        <p style="margin: 0; opacity: 0.9;">Features</p>
+    </div>
+    """, unsafe_allow_html=True)
     with col5:
         st.markdown("""
         <div class="metric-card">
@@ -539,8 +557,11 @@ def show_dashboard(model, scaler, features, importance_df):
             st.warning("Feature importance data not available")
 
 def show_single_analysis(model, scaler, features):
-    """Single app analysis"""
+    """Single app analysis - updated to handle feature mismatch"""
     st.header("📱 Single App Analysis")
+    
+    # Show feature info
+    st.info(f"ℹ️ Model uses {len(features)} features out of the 67 available in the dataset")
     
     col1, col2 = st.columns([3, 2])
     
@@ -556,6 +577,18 @@ def show_single_analysis(model, scaler, features):
                 try:
                     df = pd.read_csv(uploaded_file)
                     st.success(f"✅ File loaded: {uploaded_file.name}")
+                    
+                    # Show which features will be used
+                    with st.expander("Feature Mapping Info"):
+                        available_features = df.columns.tolist()
+                        used_features = [f for f in features if f in available_features]
+                        missing_features = [f for f in features if f not in available_features]
+                        
+                        st.write(f"**Features in your file:** {len(available_features)}")
+                        st.write(f"**Features used by model:** {len(used_features)}")
+                        if missing_features:
+                            st.warning(f"**Missing features (will use 0):** {len(missing_features)}")
+                            st.write(", ".join(missing_features[:10]) + ("..." if len(missing_features) > 10 else ""))
                     
                     # Remove file_name column if present
                     if 'file_name' in df.columns:
@@ -574,47 +607,53 @@ def show_single_analysis(model, scaler, features):
                         
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
+                    st.info("Debug info: Check if your CSV has the features expected by the model")
         
         with tabs[1]:
-            st.info("Enter feature values manually")
+            st.info(f"Enter values for the {len(features)} features used by the model")
             
             app_data = {}
             
-            with st.expander("🌐 Network Features", expanded=True):
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    app_data['network_op'] = st.number_input("Network Operations", 0.0, 1000.0, 5.0)
-                    app_data['http_clients'] = st.number_input("HTTP Clients", 0.0, 100.0, 2.0)
-                with col_b:
-                    app_data['con_timeout'] = st.number_input("Connection Timeout", 0, 1000, 0)
-                    app_data['socket_timeout'] = st.number_input("Socket Timeout", 0, 1000, 0)
+            # Only show input fields for features the model actually uses
+            model_features = features  # The 50 features from your model
             
-            with st.expander("📱 UI Features"):
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    app_data['show_method'] = st.number_input("Show Methods", 0.0, 500.0, 25.0)
-                    app_data['show_dialog'] = st.number_input("Show Dialog", 0, 100, 5)
-                with col_b:
-                    app_data['setcontentview'] = st.number_input("Set Content View", 0, 100, 5)
-                    app_data['xml_views'] = st.number_input("XML Views", 0, 1000, 10)
+            # Categorize the model features
+            network_features = [f for f in model_features if 'network' in f.lower() or 'http' in f.lower() or 'socket' in f.lower() or 'con_' in f]
+            ui_features = [f for f in model_features if 'show' in f.lower() or 'dialog' in f.lower() or 'view' in f.lower() or 'fragment' in f.lower()]
+            data_features = [f for f in model_features if 'sql' in f.lower() or 'file' in f.lower() or 'bundle' in f.lower()]
+            code_features = [f for f in model_features if 'cyclomatic' in f.lower() or 'method' in f.lower() or 'class' in f.lower() or 'wmc' in f.lower()]
+            other_features = [f for f in model_features if f not in network_features + ui_features + data_features + code_features]
             
-            with st.expander("💾 Data Features"):
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    app_data['sqllite_op'] = st.number_input("SQLite Operations", 0.0, 1000.0, 50.0)
-                    app_data['fileio_op'] = st.number_input("File I/O Operations", 0.0, 500.0, 30.0)
-                with col_b:
-                    app_data['gps_use'] = st.number_input("GPS Use", 0.0, 10.0, 0.0)
-                    app_data['files'] = st.number_input("Files", 0, 10000, 100)
+            with st.expander(f"🌐 Network Features ({len(network_features)})", expanded=True):
+                cols = st.columns(2)
+                for i, feature in enumerate(network_features):
+                    with cols[i % 2]:
+                        app_data[feature] = st.number_input(feature, 0.0, 10000.0, 0.0, key=f"net_{feature}")
             
-            with st.expander("📊 Code Metrics"):
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    app_data['cyclomatic'] = st.number_input("Cyclomatic Complexity", 0.0, 100000.0, 5000.0)
-                    app_data['methods'] = st.number_input("Methods Count", 0, 50000, 5000)
-                with col_b:
-                    app_data['classes'] = st.number_input("Classes Count", 0, 5000, 200)
-                    app_data['wmc'] = st.number_input("WMC", 0, 100000, 5000)
+            with st.expander(f"📱 UI Features ({len(ui_features)})"):
+                cols = st.columns(2)
+                for i, feature in enumerate(ui_features):
+                    with cols[i % 2]:
+                        app_data[feature] = st.number_input(feature, 0.0, 10000.0, 0.0, key=f"ui_{feature}")
+            
+            with st.expander(f"💾 Data Features ({len(data_features)})"):
+                cols = st.columns(2)
+                for i, feature in enumerate(data_features):
+                    with cols[i % 2]:
+                        app_data[feature] = st.number_input(feature, 0.0, 10000.0, 0.0, key=f"data_{feature}")
+            
+            with st.expander(f"📊 Code Metrics ({len(code_features)})"):
+                cols = st.columns(2)
+                for i, feature in enumerate(code_features):
+                    with cols[i % 2]:
+                        app_data[feature] = st.number_input(feature, 0.0, 1000000.0, 0.0, key=f"code_{feature}")
+            
+            if other_features:
+                with st.expander(f"🔧 Other Features ({len(other_features)})"):
+                    cols = st.columns(2)
+                    for i, feature in enumerate(other_features):
+                        with cols[i % 2]:
+                            app_data[feature] = st.number_input(feature, 0.0, 10000.0, 0.0, key=f"other_{feature}")
             
             if st.button("🔍 Analyze Configuration", type="primary"):
                 analyze_and_display(app_data, model, scaler, features)
@@ -622,18 +661,19 @@ def show_single_analysis(model, scaler, features):
         with tabs[2]:
             st.info("Test with predefined samples")
             
+            # Create sample data using only the features the model expects
             sample_apps = {
                 "🔴 High-Risk Adware": {
                     'network_op': 85, 'http_clients': 25, 'show_method': 150,
-                    'sqllite_op': 400, 'fileio_op': 280, 'gps_use': 5
+                    'sqllite_op': 400, 'fileio_op': 280
                 },
                 "🟡 Moderate Risk": {
                     'network_op': 35, 'http_clients': 8, 'show_method': 60,
-                    'sqllite_op': 150, 'fileio_op': 100, 'gps_use': 2
+                    'sqllite_op': 150, 'fileio_op': 100
                 },
                 "✅ Safe App": {
                     'network_op': 3, 'http_clients': 1, 'show_method': 15,
-                    'sqllite_op': 20, 'fileio_op': 25, 'gps_use': 0
+                    'sqllite_op': 20, 'fileio_op': 25
                 }
             }
             
@@ -641,7 +681,10 @@ def show_single_analysis(model, scaler, features):
             for idx, (name, data) in enumerate(sample_apps.items()):
                 with cols[idx]:
                     if st.button(name, use_container_width=True):
-                        analyze_and_display(data, model, scaler, features)
+                        # Ensure all required features are present
+                        complete_data = {f: 0 for f in features}
+                        complete_data.update(data)
+                        analyze_and_display(complete_data, model, scaler, features)
     
     with col2:
         st.subheader("📊 Session Statistics")
