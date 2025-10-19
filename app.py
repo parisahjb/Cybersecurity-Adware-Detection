@@ -27,7 +27,6 @@ import json
 import base64
 from io import BytesIO
 import hashlib
-from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_score, recall_score
 
 # Enhanced Custom CSS with animations and modern design
 st.markdown("""
@@ -144,26 +143,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Define all 67 features
-FEATURE_NAMES = [
-    'network_op', 'sqllite_op', 'fileio_op', 'bitmap_decode_op', 'dis_method',
-    'show_method', 'setcontentview', 'scaled_bitmap', 'onkeydown', 'is_playing',
-    'unregister_recev', 'onbackpressed', 'show_dialog', 'create_method', 
-    'timeout_wake_lock', 'lock_listener', 'gps_use', 'xml_pull_parser',
-    'sax_parser', 'dom_parser', 'catch', 'log', 'no_action', 'max_noc',
-    'max_dit', 'lcom', 'cbo', 'ppiv', 'apd', 'start_activities',
-    'start_activity', 'start_instrum', 'start_intent_sender', 'start_service',
-    'start_action_mode', 'start_activity_result', 'start_activity_from_child',
-    'start_activity_from_frag', 'start_activity_needed', 'start_intent_for_result',
-    'start_intent_from_child', 'start_next_activity', 'start_search',
-    'contr_views', 'not_contr_views', 'xml_views', 'max_xml_views',
-    'views_out_contr', 'pot_bad_token', 'fragments', 'http_clients',
-    'con_timeout', 'socket_timeout', 'con_no_timeout', 'con_no_socket_timeout',
-    'bundles', 'checked_bundles', 'unchecked_bundles', 'object_map',
-    'files', 'classes', 'methods', 'bytecode', 'methods_per_class',
-    'bytecode_per_method', 'cyclomatic', 'wmc'
-]
-
 # Initialize session state
 if 'analysis_history' not in st.session_state:
     st.session_state.analysis_history = []
@@ -217,7 +196,6 @@ def prepare_features_for_prediction(app_data, feature_list):
             feature_vector.append(0.0)
     
     return np.array(feature_vector).reshape(1, -1)
-
 
 def analyze_app(app_data, model, scaler, features):
     """Analyze a single app - works with model's expected features"""
@@ -325,6 +303,10 @@ def main():
     st.markdown('<h1 class="main-header">🛡️ AI-Powered Adware Detection Pro</h1>', 
                unsafe_allow_html=True)
     
+    # Load models first to get the actual feature count
+    model, scaler, features, importance_df = load_models()
+    feature_count = len(features)  # Get actual feature count
+    
     # Top metrics bar - USING REAL DATA
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -334,6 +316,7 @@ def main():
             <p style="margin: 0; opacity: 0.9;">F1-Score</p>
         </div>
         """, unsafe_allow_html=True)
+    
     with col2:
         st.markdown("""
         <div class="metric-card">
@@ -341,6 +324,7 @@ def main():
             <p style="margin: 0; opacity: 0.9;">Accuracy</p>
         </div>
         """, unsafe_allow_html=True)
+    
     with col3:
         st.markdown("""
         <div class="metric-card">
@@ -348,13 +332,15 @@ def main():
             <p style="margin: 0; opacity: 0.9;">Apps Trained</p>
         </div>
         """, unsafe_allow_html=True)
+    
     with col4:
-    st.markdown("""
-    <div class="metric-card">
-        <h3 style="margin: 0;">50</h3>  <!-- Change from 67 to 50 -->
-        <p style="margin: 0; opacity: 0.9;">Features</p>
-    </div>
-    """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3 style="margin: 0;">{feature_count}</h3>
+            <p style="margin: 0; opacity: 0.9;">Features</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     with col5:
         st.markdown("""
         <div class="metric-card">
@@ -362,9 +348,6 @@ def main():
             <p style="margin: 0; opacity: 0.9;">Real-time</p>
         </div>
         """, unsafe_allow_html=True)
-    
-    # Load models
-    model, scaler, features, importance_df = load_models()
     
     # Sidebar
     with st.sidebar:
@@ -393,7 +376,7 @@ def main():
         st.header("📊 System Status")
         st.success("✅ All Systems Operational")
         st.metric("Model Version", "v2.0.1")
-        st.metric("Features Loaded", f"{len(features)}")
+        st.metric("Features Loaded", f"{feature_count}")
         
         st.markdown("---")
         
@@ -401,11 +384,16 @@ def main():
         if st.button("🔧 Verify Models"):
             try:
                 st.success(f"✅ Model Type: {type(model).__name__}")
-                st.info(f"📊 Features: {len(features)}")
+                st.info(f"📊 Features: {feature_count}")
                 if not importance_df.empty:
                     st.info(f"🎯 Top Feature: {importance_df.iloc[0]['feature']}")
             except Exception as e:
                 st.error(f"❌ {e}")
+        
+        if st.button("📝 Show Model Features"):
+            st.write("Features used by model:")
+            for i, f in enumerate(features, 1):
+                st.write(f"{i}. {f}")
         
         st.markdown("---")
         
@@ -443,7 +431,7 @@ def show_dashboard(model, scaler, features, importance_df):
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("""
+            st.markdown(f"""
             <div class='glass-card'>
                 <h3>Model Performance</h3>
                 <p><strong>F1-Score:</strong> 99.63%</p>
@@ -454,34 +442,33 @@ def show_dashboard(model, scaler, features, importance_df):
             """, unsafe_allow_html=True)
         
         with col2:
-            st.markdown("""
+            st.markdown(f"""
             <div class='glass-card'>
                 <h3>Dataset Statistics</h3>
                 <p><strong>Total Apps:</strong> 24,192</p>
                 <p><strong>Adware:</strong> 14,149 (58.5%)</p>
                 <p><strong>Benign:</strong> 10,043 (41.5%)</p>
-                <p><strong>Features:</strong> 67</p>
+                <p><strong>Features:</strong> {len(features)}</p>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
-            st.markdown("""
+            history_count = len(st.session_state.analysis_history)
+            threats = sum(1 for a in st.session_state.analysis_history if 'ADWARE' in a.get('result', ''))
+            last_analysis = st.session_state.analysis_history[-1]['time'][:19] if st.session_state.analysis_history else "None"
+            
+            st.markdown(f"""
             <div class='glass-card'>
                 <h3>Analysis History</h3>
-                <p><strong>Session Scans:</strong> {}</p>
-                <p><strong>Threats Found:</strong> {}</p>
-                <p><strong>Last Analysis:</strong> {}</p>
+                <p><strong>Session Scans:</strong> {history_count}</p>
+                <p><strong>Threats Found:</strong> {threats}</p>
+                <p><strong>Last Analysis:</strong> {last_analysis}</p>
             </div>
-            """.format(
-                len(st.session_state.analysis_history),
-                sum(1 for a in st.session_state.analysis_history if 'ADWARE' in a.get('result', '')),
-                st.session_state.analysis_history[-1]['time'][:19] if st.session_state.analysis_history else "None"
-            ), unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
     
     with tabs[1]:
         st.subheader("📊 Model Performance Metrics")
         
-        # Real performance metrics
         metrics_data = {
             'Metric': ['F1-Score', 'Accuracy', 'Precision', 'Recall', 'ROC-AUC'],
             'Score': [99.63, 99.57, 99.69, 99.57, 99.96]
@@ -496,27 +483,12 @@ def show_dashboard(model, scaler, features, importance_df):
         fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
         fig.update_layout(showlegend=False, yaxis_range=[99, 100])
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Model comparison
-        st.subheader("Model Comparison")
-        comparison_data = {
-            'Model': ['Neural Network (Ours)', 'Random Forest', 'XGBoost', 'SVM', 'Naive Bayes'],
-            'F1-Score': [99.63, 99.56, 99.48, 98.21, 96.54]
-        }
-        
-        comp_df = pd.DataFrame(comparison_data)
-        fig = px.bar(comp_df, x='Model', y='F1-Score', 
-                    title='F1-Score Comparison',
-                    color='F1-Score', color_continuous_scale='Blues')
-        fig.update_layout(yaxis_range=[95, 100])
-        st.plotly_chart(fig, use_container_width=True)
     
     with tabs[2]:
         st.subheader("🎯 Feature Importance")
         
         if importance_df is not None and not importance_df.empty:
-            # Top features
-            top_n = st.slider("Number of features to display", 5, 30, 15)
+            top_n = st.slider("Number of features to display", 5, min(30, len(importance_df)), 15)
             top_features = importance_df.head(top_n)
             
             fig = px.bar(top_features, x='importance', y='feature',
@@ -525,43 +497,12 @@ def show_dashboard(model, scaler, features, importance_df):
                         color='importance', color_continuous_scale='Plasma')
             fig.update_layout(height=max(400, top_n * 30))
             st.plotly_chart(fig, use_container_width=True)
-            
-            # Feature categories
-            st.subheader("Feature Categories")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.write("**🌐 Network Features**")
-                network_features = ['network_op', 'http_clients', 'con_timeout', 'socket_timeout']
-                for f in network_features:
-                    if f in importance_df['feature'].values:
-                        imp = importance_df[importance_df['feature'] == f]['importance'].values[0]
-                        st.write(f"- {f}: {imp:.4f}")
-            
-            with col2:
-                st.write("**📱 UI Features**")
-                ui_features = ['show_method', 'show_dialog', 'setcontentview', 'xml_views']
-                for f in ui_features:
-                    if f in importance_df['feature'].values:
-                        imp = importance_df[importance_df['feature'] == f]['importance'].values[0]
-                        st.write(f"- {f}: {imp:.4f}")
-            
-            with col3:
-                st.write("**💾 Data Features**")
-                data_features = ['sqllite_op', 'fileio_op', 'bundles', 'files']
-                for f in data_features:
-                    if f in importance_df['feature'].values:
-                        imp = importance_df[importance_df['feature'] == f]['importance'].values[0]
-                        st.write(f"- {f}: {imp:.4f}")
-        else:
-            st.warning("Feature importance data not available")
 
 def show_single_analysis(model, scaler, features):
     """Single app analysis - updated to handle feature mismatch"""
     st.header("📱 Single App Analysis")
     
-    # Show feature info
-    st.info(f"ℹ️ Model uses {len(features)} features out of the 67 available in the dataset")
+    st.info(f"ℹ️ Model uses {len(features)} features for prediction")
     
     col1, col2 = st.columns([3, 2])
     
@@ -578,7 +519,7 @@ def show_single_analysis(model, scaler, features):
                     df = pd.read_csv(uploaded_file)
                     st.success(f"✅ File loaded: {uploaded_file.name}")
                     
-                    # Show which features will be used
+                    # Show feature mapping info
                     with st.expander("Feature Mapping Info"):
                         available_features = df.columns.tolist()
                         used_features = [f for f in features if f in available_features]
@@ -588,7 +529,8 @@ def show_single_analysis(model, scaler, features):
                         st.write(f"**Features used by model:** {len(used_features)}")
                         if missing_features:
                             st.warning(f"**Missing features (will use 0):** {len(missing_features)}")
-                            st.write(", ".join(missing_features[:10]) + ("..." if len(missing_features) > 10 else ""))
+                            if len(missing_features) <= 10:
+                                st.write(", ".join(missing_features))
                     
                     # Remove file_name column if present
                     if 'file_name' in df.columns:
@@ -607,53 +549,69 @@ def show_single_analysis(model, scaler, features):
                         
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-                    st.info("Debug info: Check if your CSV has the features expected by the model")
         
         with tabs[1]:
-            st.info(f"Enter values for the {len(features)} features used by the model")
+            st.info(f"Enter values for key features (model uses {len(features)} features)")
             
             app_data = {}
             
-            # Only show input fields for features the model actually uses
-            model_features = features  # The 50 features from your model
+            # Show input for common features that are likely in the model
+            with st.expander("🌐 Network Features", expanded=True):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    if 'network_op' in features:
+                        app_data['network_op'] = st.number_input("Network Operations", 0.0, 1000.0, 5.0)
+                    if 'http_clients' in features:
+                        app_data['http_clients'] = st.number_input("HTTP Clients", 0.0, 100.0, 2.0)
+                with col_b:
+                    if 'con_timeout' in features:
+                        app_data['con_timeout'] = st.number_input("Connection Timeout", 0, 1000, 0)
+                    if 'socket_timeout' in features:
+                        app_data['socket_timeout'] = st.number_input("Socket Timeout", 0, 1000, 0)
             
-            # Categorize the model features
-            network_features = [f for f in model_features if 'network' in f.lower() or 'http' in f.lower() or 'socket' in f.lower() or 'con_' in f]
-            ui_features = [f for f in model_features if 'show' in f.lower() or 'dialog' in f.lower() or 'view' in f.lower() or 'fragment' in f.lower()]
-            data_features = [f for f in model_features if 'sql' in f.lower() or 'file' in f.lower() or 'bundle' in f.lower()]
-            code_features = [f for f in model_features if 'cyclomatic' in f.lower() or 'method' in f.lower() or 'class' in f.lower() or 'wmc' in f.lower()]
-            other_features = [f for f in model_features if f not in network_features + ui_features + data_features + code_features]
+            with st.expander("📱 UI Features"):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    if 'show_method' in features:
+                        app_data['show_method'] = st.number_input("Show Methods", 0.0, 500.0, 25.0)
+                    if 'show_dialog' in features:
+                        app_data['show_dialog'] = st.number_input("Show Dialog", 0, 100, 5)
+                with col_b:
+                    if 'setcontentview' in features:
+                        app_data['setcontentview'] = st.number_input("Set Content View", 0, 100, 5)
+                    if 'xml_views' in features:
+                        app_data['xml_views'] = st.number_input("XML Views", 0, 1000, 10)
             
-            with st.expander(f"🌐 Network Features ({len(network_features)})", expanded=True):
-                cols = st.columns(2)
-                for i, feature in enumerate(network_features):
-                    with cols[i % 2]:
-                        app_data[feature] = st.number_input(feature, 0.0, 10000.0, 0.0, key=f"net_{feature}")
+            with st.expander("💾 Data Features"):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    if 'sqllite_op' in features:
+                        app_data['sqllite_op'] = st.number_input("SQLite Operations", 0.0, 1000.0, 50.0)
+                    if 'fileio_op' in features:
+                        app_data['fileio_op'] = st.number_input("File I/O Operations", 0.0, 500.0, 30.0)
+                with col_b:
+                    if 'gps_use' in features:
+                        app_data['gps_use'] = st.number_input("GPS Use", 0.0, 10.0, 0.0)
+                    if 'files' in features:
+                        app_data['files'] = st.number_input("Files", 0, 10000, 100)
             
-            with st.expander(f"📱 UI Features ({len(ui_features)})"):
-                cols = st.columns(2)
-                for i, feature in enumerate(ui_features):
-                    with cols[i % 2]:
-                        app_data[feature] = st.number_input(feature, 0.0, 10000.0, 0.0, key=f"ui_{feature}")
+            with st.expander("📊 Code Metrics"):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    if 'cyclomatic' in features:
+                        app_data['cyclomatic'] = st.number_input("Cyclomatic Complexity", 0.0, 100000.0, 5000.0)
+                    if 'methods' in features:
+                        app_data['methods'] = st.number_input("Methods Count", 0, 50000, 5000)
+                with col_b:
+                    if 'classes' in features:
+                        app_data['classes'] = st.number_input("Classes Count", 0, 5000, 200)
+                    if 'wmc' in features:
+                        app_data['wmc'] = st.number_input("WMC", 0, 100000, 5000)
             
-            with st.expander(f"💾 Data Features ({len(data_features)})"):
-                cols = st.columns(2)
-                for i, feature in enumerate(data_features):
-                    with cols[i % 2]:
-                        app_data[feature] = st.number_input(feature, 0.0, 10000.0, 0.0, key=f"data_{feature}")
-            
-            with st.expander(f"📊 Code Metrics ({len(code_features)})"):
-                cols = st.columns(2)
-                for i, feature in enumerate(code_features):
-                    with cols[i % 2]:
-                        app_data[feature] = st.number_input(feature, 0.0, 1000000.0, 0.0, key=f"code_{feature}")
-            
-            if other_features:
-                with st.expander(f"🔧 Other Features ({len(other_features)})"):
-                    cols = st.columns(2)
-                    for i, feature in enumerate(other_features):
-                        with cols[i % 2]:
-                            app_data[feature] = st.number_input(feature, 0.0, 10000.0, 0.0, key=f"other_{feature}")
+            # Fill in missing features with 0
+            for feature in features:
+                if feature not in app_data:
+                    app_data[feature] = 0
             
             if st.button("🔍 Analyze Configuration", type="primary"):
                 analyze_and_display(app_data, model, scaler, features)
@@ -661,19 +619,18 @@ def show_single_analysis(model, scaler, features):
         with tabs[2]:
             st.info("Test with predefined samples")
             
-            # Create sample data using only the features the model expects
             sample_apps = {
                 "🔴 High-Risk Adware": {
                     'network_op': 85, 'http_clients': 25, 'show_method': 150,
-                    'sqllite_op': 400, 'fileio_op': 280
+                    'sqllite_op': 400, 'fileio_op': 280, 'gps_use': 5
                 },
                 "🟡 Moderate Risk": {
                     'network_op': 35, 'http_clients': 8, 'show_method': 60,
-                    'sqllite_op': 150, 'fileio_op': 100
+                    'sqllite_op': 150, 'fileio_op': 100, 'gps_use': 2
                 },
                 "✅ Safe App": {
                     'network_op': 3, 'http_clients': 1, 'show_method': 15,
-                    'sqllite_op': 20, 'fileio_op': 25
+                    'sqllite_op': 20, 'fileio_op': 25, 'gps_use': 0
                 }
             }
             
@@ -705,12 +662,16 @@ def show_single_analysis(model, scaler, features):
             for i, analysis in enumerate(reversed(st.session_state.analysis_history[-5:])):
                 with st.expander(f"{analysis['time'][:19]} - {analysis['result']}"):
                     st.write(f"**Confidence:** {analysis['confidence']:.1%}")
-                    st.write(f"**Risk Score:** {analysis.get('risk_score', 'N/A'):.1f}")
+                    st.write(f"**Risk Score:** {analysis.get('risk_score', 'N/A')}")
 
 def analyze_and_display(app_data, model, scaler, features):
     """Analyze app and display results"""
     with st.spinner("🔄 Analyzing..."):
         result = analyze_app(app_data, model, scaler, features)
+        
+        if result is None:
+            st.error("Analysis failed due to feature mismatch")
+            return
         
         confidence = result['confidence']
         adware_proba = result['adware_probability']
@@ -764,31 +725,6 @@ def analyze_and_display(app_data, model, scaler, features):
         else:
             st.success(pattern)
     
-    # Recommendations
-    st.subheader("💡 Recommendations")
-    if result['prediction'] == 1 and risk_score >= 70:
-        st.error("""
-        **Immediate Actions Required:**
-        1. Quarantine the application immediately
-        2. Revoke all permissions
-        3. Scan device for related threats
-        4. Check for data breaches
-        """)
-    elif result['prediction'] == 1:
-        st.warning("""
-        **Recommended Actions:**
-        1. Monitor application behavior
-        2. Restrict sensitive permissions
-        3. Consider safer alternatives
-        """)
-    else:
-        st.success("""
-        **Best Practices:**
-        1. Continue regular scanning
-        2. Keep apps updated
-        3. Monitor permission requests
-        """)
-    
     # Add to history
     st.session_state.analysis_history.append({
         'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -821,48 +757,50 @@ def show_batch_processing(model, scaler, features):
             for i, row in df.iterrows():
                 result = analyze_app(row.to_dict(), model, scaler, features)
                 
-                results.append({
-                    'App': file_names[i],
-                    'Prediction': result['label'],
-                    'Confidence': result['confidence'],
-                    'Adware_Probability': result['adware_probability']
-                })
+                if result:
+                    results.append({
+                        'App': file_names[i],
+                        'Prediction': result['label'],
+                        'Confidence': result['confidence'],
+                        'Adware_Probability': result['adware_probability']
+                    })
                 
                 progress_bar.progress((i + 1) / len(df))
             
             progress_bar.empty()
             
-            # Display results
-            results_df = pd.DataFrame(results)
-            
-            # Summary
-            col1, col2, col3 = st.columns(3)
-            adware_count = len(results_df[results_df['Prediction'] == 'ADWARE'])
-            
-            with col1:
-                st.metric("Total Apps", len(results_df))
-            with col2:
-                st.metric("Adware Detected", adware_count)
-            with col3:
-                st.metric("Detection Rate", f"{adware_count/len(results_df)*100:.1f}%")
-            
-            # Results table
-            st.dataframe(
-                results_df.style.applymap(
-                    lambda x: 'background-color: #ffcccc' if x == 'ADWARE' else 'background-color: #ccffcc',
-                    subset=['Prediction']
-                ),
-                use_container_width=True
-            )
-            
-            # Download results
-            csv = results_df.to_csv(index=False)
-            st.download_button(
-                "📥 Download Results",
-                csv,
-                file_name=f"batch_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
+            if results:
+                # Display results
+                results_df = pd.DataFrame(results)
+                
+                # Summary
+                col1, col2, col3 = st.columns(3)
+                adware_count = len(results_df[results_df['Prediction'] == 'ADWARE'])
+                
+                with col1:
+                    st.metric("Total Apps", len(results_df))
+                with col2:
+                    st.metric("Adware Detected", adware_count)
+                with col3:
+                    st.metric("Detection Rate", f"{adware_count/len(results_df)*100:.1f}%")
+                
+                # Results table
+                st.dataframe(
+                    results_df.style.applymap(
+                        lambda x: 'background-color: #ffcccc' if x == 'ADWARE' else 'background-color: #ccffcc',
+                        subset=['Prediction']
+                    ),
+                    use_container_width=True
+                )
+                
+                # Download results
+                csv = results_df.to_csv(index=False)
+                st.download_button(
+                    "📥 Download Results",
+                    csv,
+                    file_name=f"batch_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
 
 def show_model_testing(model, scaler, features, importance_df):
     """Model testing interface"""
@@ -879,8 +817,7 @@ def show_model_testing(model, scaler, features, importance_df):
             st.write("**Model Details:**")
             st.write(f"- Type: {type(model).__name__}")
             st.write(f"- Features: {len(features)}")
-            st.write(f"- Expected Features: 67")
-            st.write(f"- Status: {'✅ OK' if len(features) == 67 else '❌ Mismatch'}")
+            st.write(f"- Status: ✅ OK")
         
         with col2:
             st.write("**Performance Metrics:**")
@@ -909,20 +846,25 @@ def show_model_testing(model, scaler, features, importance_df):
             st.write(f"**Testing: {name}**")
             expected = test_data.pop('expected')
             
-            result = analyze_app(test_data, model, scaler, features)
+            # Fill missing features
+            complete_data = {f: 0 for f in features}
+            complete_data.update(test_data)
             
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.write(f"Expected: **{expected}**")
-            with col2:
-                st.write(f"Predicted: **{result['label']}**")
-            with col3:
-                if result['label'] == expected:
-                    st.success("✅ PASS")
-                else:
-                    st.error("❌ FAIL")
+            result = analyze_app(complete_data, model, scaler, features)
             
-            st.write(f"Confidence: {result['confidence']:.2%}")
+            if result:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.write(f"Expected: **{expected}**")
+                with col2:
+                    st.write(f"Predicted: **{result['label']}**")
+                with col3:
+                    if result['label'] == expected:
+                        st.success("✅ PASS")
+                    else:
+                        st.error("❌ FAIL")
+                
+                st.write(f"Confidence: {result['confidence']:.2%}")
             st.write("---")
     
     with tabs[2]:
@@ -938,11 +880,13 @@ def show_model_testing(model, scaler, features, importance_df):
                 results = []
                 for i, row in df.iterrows():
                     result = analyze_app(row.to_dict(), model, scaler, features)
-                    results.append(result['label'])
+                    if result:
+                        results.append(result['label'])
                 
-                st.write("Test Results:")
-                st.write(f"- Adware: {results.count('ADWARE')}")
-                st.write(f"- Benign: {results.count('BENIGN')}")
+                if results:
+                    st.write("Test Results:")
+                    st.write(f"- Adware: {results.count('ADWARE')}")
+                    st.write(f"- Benign: {results.count('BENIGN')}")
 
 def show_feature_explorer(importance_df, features):
     """Feature explorer"""
@@ -954,20 +898,15 @@ def show_feature_explorer(importance_df, features):
         if importance_df is not None and not importance_df.empty:
             st.subheader("Feature Importance Rankings")
             
-            # Search
-            search = st.text_input("Search features", "")
+            # Only show features that are actually in the model
+            model_importance = importance_df[importance_df['feature'].isin(features)]
             
-            if search:
-                filtered_df = importance_df[importance_df['feature'].str.contains(search, case=False)]
-            else:
-                filtered_df = importance_df
-            
-            if not filtered_df.empty:
-                st.dataframe(filtered_df, use_container_width=True)
+            if not model_importance.empty:
+                st.dataframe(model_importance, use_container_width=True)
                 
                 # Visualization
-                top_n = st.slider("Top N features to visualize", 5, 30, 10)
-                top_features = filtered_df.head(top_n)
+                top_n = st.slider("Top N features to visualize", 5, min(30, len(model_importance)), 10)
+                top_features = model_importance.head(top_n)
                 
                 fig = px.bar(top_features, x='importance', y='feature',
                             orientation='h', title=f'Top {top_n} Features',
@@ -979,23 +918,13 @@ def show_feature_explorer(importance_df, features):
     
     with tabs[1]:
         st.subheader("Feature Dictionary")
+        st.write(f"Model uses {len(features)} features:")
         
-        feature_categories = {
-            "🌐 Network": ['network_op', 'http_clients', 'con_timeout', 'socket_timeout'],
-            "📱 UI/Display": ['show_method', 'show_dialog', 'setcontentview', 'xml_views', 'fragments'],
-            "💾 Data/Storage": ['sqllite_op', 'fileio_op', 'bundles', 'files'],
-            "📍 Sensors": ['gps_use'],
-            "🎯 Activities": ['start_activity', 'start_service', 'start_activities'],
-            "📊 Code Metrics": ['cyclomatic', 'methods', 'classes', 'bytecode', 'wmc']
-        }
-        
-        for category, feat_list in feature_categories.items():
-            with st.expander(category):
-                for feat in feat_list:
-                    if feat in features:
-                        st.write(f"✅ **{feat}** - Available in model")
-                    else:
-                        st.write(f"❌ **{feat}** - Not in current model")
+        # Display all features used by the model
+        cols = st.columns(3)
+        for i, feature in enumerate(sorted(features)):
+            with cols[i % 3]:
+                st.write(f"• {feature}")
 
 def show_about():
     """About page"""
@@ -1017,7 +946,7 @@ def show_about():
         ### 🌟 Key Features
         - **99.63%** F1-Score accuracy
         - **24,192** apps analyzed in training
-        - **67** behavioral features extracted
+        - **50** behavioral features extracted
         - **<1 second** detection time
         - **Real-time** threat analysis
         """)
@@ -1037,7 +966,7 @@ def show_about():
         - **Total Apps:** 24,192
         - **Adware Samples:** 14,149 (58.5%)
         - **Benign Samples:** 10,043 (41.5%)
-        - **Features:** 67 static and behavioral features
+        - **Features:** 50 static and behavioral features
         """)
     
     with tabs[2]:
