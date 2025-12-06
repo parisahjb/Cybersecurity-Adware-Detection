@@ -384,31 +384,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
-
----
-
-**Steps:**
-
-1. Go to GitHub → `app.py` → Edit (pencil icon)
-2. **Select all** and **delete** the current content
-3. **Paste** the new code above
-4. Click **"Commit changes"**
-5. Wait 1-2 minutes for Streamlit Cloud to redeploy
-
----
-
-Also make sure your `requirements.txt` is the minimal version:
-```
-streamlit
-pandas
-numpy
-plotly
-scikit-learn
-lightgbm
-shap
-joblib
-openai
-anthropic
-google-generativeai
-Pillow
