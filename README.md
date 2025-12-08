@@ -132,7 +132,7 @@ If you use this system in your research:
 ```bibtex
 @software{adware_detection_2025,
   title={Explainable Android Adware Detection System},
-  author={Parisa Hajbabaie and Karim Ouazzane},
+  author={Parisa Hajbabaee, Masoud Malekzadeh, and Karim Elish},
   year={2025},
   note={LightGBM achieving 99.32\% accuracy with SHAP explainability},
   url={https://github.com/parisahjb/Cybersecurity-Adware-Detection}
