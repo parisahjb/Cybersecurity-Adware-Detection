@@ -1203,7 +1203,7 @@ def main():
 
 Hajibabaee, P., Elish, K., Malekzadeh, M., & Aljamaan, H. (2025). 
 *Explainable Machine Learning for Android Adware Detection.* 
-Computers & Security.
+# Computers & Security.
 
 GitHub: https://github.com/parisahjb/Cybersecurity-Adware-Detection
 
