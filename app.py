@@ -436,7 +436,7 @@ def main():
         st.markdown("""
         <small>Hajibabaee, P., Elish, K., Malekzadeh, M., & Aljamaan, H. (2025). 
         <em>Explainable Machine Learning for Android Adware Detection.</em> 
-        Computers & Security.</small>
+        # Computers & Security.</small>
         """, unsafe_allow_html=True)
     
     # ==========================================
