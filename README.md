@@ -126,33 +126,7 @@ Features can be extracted using the [Android Quality Metrics Tool](https://githu
 
 ---
 
-## 🎓 Citation
 
-If you use this system in your research:
-```bibtex
-@software{adware_detection_2025,
-  title={Explainable Android Adware Detection System},
-  year={2025},
-  note={LightGBM achieving 99.32\% accuracy with SHAP explainability},
-  url={https://github.com/parisahjb/Cybersecurity-Adware-Detection}
-}
-```
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 📞 Contact
-
-- **GitHub**: [@parisahjb](https://github.com/parisahjb)
-
----
-
-<div align="center">
 
 **Built with ❤️ using Python, Streamlit, LightGBM, and SHAP**
 
