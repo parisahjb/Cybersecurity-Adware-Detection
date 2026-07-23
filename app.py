@@ -1,10 +1,3 @@
-"""
-Android Adware Detection System with Explainable AI
-Version 2.2 - Updated for Computers & Security Submission
-Paper: Explainable Machine Learning for Android Adware Detection
-Authors: Parisa Hajibabaee, Karim Elish, Masoud Malekzadeh, Hamoud Aljamaan
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -18,7 +11,7 @@ from datetime import datetime
 # PAGE CONFIG
 # ==========================================
 st.set_page_config(
-    page_title="Android Adware Detection",
+    page_title="Android Adware Screening",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -79,26 +72,26 @@ FEATURE_NAMES = [
 ]
 
 FEATURE_DESCRIPTIONS = {
-    'cyclomatic': 'McCabe cyclomatic complexity — higher values indicate more complex, typically legitimate apps (benign avg: 38,606 vs adware avg: 5,754)',
-    'network_op': 'Network operation calls — high values indicate frequent ad server communication (adware avg: 3.89 vs benign avg: 0.26)',
-    'fileio_op': 'File I/O operation calls — file system access patterns (benign avg: 163 vs adware avg: 54)',
-    'sqllite_op': 'SQLite database operations — local data storage behavior',
-    'no_action': 'Empty exception handlers — code sophistication indicator (benign avg: 831 vs adware avg: 183)',
-    'cbo': 'Coupling Between Objects — class interdependence metric (Chidamber & Kemerer suite)',
-    'lcom': 'Lack of Cohesion in Methods — OOP design quality metric',
-    'dit': 'Depth of Inheritance Tree — class hierarchy complexity',
-    'noc': 'Number of Children — inheritance breadth measure',
-    'ppiv': 'Proportion of Public Instance Variables — encapsulation indicator',
-    'apd': 'Average Parameter Density — method complexity indicator',
-    'start_service': 'startService() invocations — background service activity',
-    'start_activity': 'startActivity() invocations — UI navigation calls',
-    'start_activities': 'startActivities() invocations — multiple activity launches',
-    'start_action_mode': 'startActionMode() invocations — contextual action calls',
-    'start_activity_result': 'startActivityForResult() invocations — result-based navigation',
+    'cyclomatic': 'McCabe cyclomatic complexity - larger codebases show higher values (benign avg: 38,606 vs adware avg: 5,754)',
+    'network_op': 'Network operation calls - high values indicate frequent ad server communication (adware avg: 3.89 vs benign avg: 0.26)',
+    'fileio_op': 'File I/O operation calls - file system access patterns (benign avg: 163 vs adware avg: 54)',
+    'sqllite_op': 'SQLite database operations - local data storage behavior',
+    'no_action': 'Empty action handler blocks (benign avg: 831 vs adware avg: 183)',
+    'cbo': 'Coupling Between Objects - class interdependence metric (Chidamber & Kemerer suite)',
+    'lcom': 'Lack of Cohesion in Methods - OOP design quality metric',
+    'dit': 'Depth of Inheritance Tree - class hierarchy complexity',
+    'noc': 'Number of Children - inheritance breadth measure',
+    'ppiv': 'Proportion of Public Instance Variables - encapsulation indicator',
+    'apd': 'Average Parameter Density - method complexity indicator',
+    'start_service': 'startService() invocations - background service activity',
+    'start_activity': 'startActivity() invocations - UI navigation calls',
+    'start_activities': 'startActivities() invocations - multiple activity launches',
+    'start_action_mode': 'startActionMode() invocations - contextual action calls',
+    'start_activity_result': 'startActivityForResult() invocations - result-based navigation',
     'start_activity_from_frag': 'startActivityFromFragment() invocations',
     'start_activity_needed': 'startActivityIfNeeded() invocations',
     'start_intent_for_result': 'startIntentSenderForResult() invocations',
-    'start_search': 'startSearch() invocations — search functionality calls',
+    'start_search': 'startSearch() invocations - search functionality calls',
     'methods_per_class': 'Average number of methods per class',
     'bytecode_per_method': 'Average bytecode instructions per method'
 }
@@ -130,7 +123,7 @@ def load_model():
         'adware_model_22features_CORRECTED.joblib',
         'adware_model_22features.joblib'
     ]
-    
+
     for filename in model_files:
         if os.path.exists(filename):
             try:
@@ -143,7 +136,7 @@ def load_model():
             except Exception as e:
                 st.error(f"Error loading {filename}: {e}")
                 continue
-    
+
     return None, None, FEATURE_NAMES
 
 MODEL, SCALER, LOADED_FEATURES = load_model()
@@ -156,25 +149,25 @@ if LOADED_FEATURES is not None:
 # ==========================================
 
 def get_prediction(features_df):
-    """Run adware detection on input features."""
+    """Run adware screening on input features."""
     if MODEL is None:
         return None, None
-    
+
     available = [f for f in FEATURE_NAMES if f in features_df.columns]
     if not available:
         return None, None
-    
+
     X = features_df[available].copy()
-    
+
     if SCALER is not None:
         X_scaled = SCALER.transform(X)
     else:
         X_scaled = X.values
-    
+
     pred = MODEL.predict(X_scaled)
     prob = MODEL.predict_proba(X_scaled) if hasattr(MODEL, 'predict_proba') \
            else np.array([[1-p, p] for p in pred])
-    
+
     return pred, prob
 
 
@@ -209,36 +202,36 @@ def create_radar_chart(features_df, idx=0):
     key_features = ['cyclomatic', 'network_op', 'fileio_op',
                     'no_action', 'cbo', 'start_service']
     available = [f for f in key_features if f in features_df.columns]
-    
+
     if not available:
         return None
-    
+
     sample_vals = features_df[available].iloc[idx].values
-    
+
     # Normalize values (0-1 scale based on benign typical max)
     max_vals = {
         'cyclomatic': 50000, 'network_op': 20, 'fileio_op': 300,
         'no_action': 1000, 'cbo': 1, 'start_service': 20
     }
-    
+
     def normalize(vals, feats):
         return [min(1, abs(vals[i]) / max_vals.get(feats[i], 1))
                 for i in range(len(feats))]
-    
+
     sample_norm = normalize(sample_vals, available)
-    
+
     benign_norm = normalize(
         [TYPICAL_VALUES['benign'].get(f, 0) for f in available], available
     )
     adware_norm = normalize(
         [TYPICAL_VALUES['adware'].get(f, 0) for f in available], available
     )
-    
+
     # Close the radar
     theta = available + [available[0]]
-    
+
     fig = go.Figure()
-    
+
     fig.add_trace(go.Scatterpolar(
         r=sample_norm + [sample_norm[0]],
         theta=theta,
@@ -265,7 +258,7 @@ def create_radar_chart(features_df, idx=0):
         fillcolor='rgba(255, 68, 68, 0.15)',
         line=dict(dash='dot')
     ))
-    
+
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
         showlegend=True,
@@ -280,35 +273,35 @@ def get_counterfactual_suggestions(features_df, pred, idx=0):
     """Generate counterfactual explanations."""
     suggestions = []
     sample = features_df.iloc[idx]
-    
+
     if pred[idx] == 1:  # Classified as adware
         if 'cyclomatic' in sample.index and sample['cyclomatic'] < 15000:
             suggestions.append({
                 'Feature': 'cyclomatic',
                 'Current Value': f"{sample['cyclomatic']:.0f}",
                 'Suggested Change': '> 15,000',
-                'Reason': 'Benign apps avg 38,606 — low complexity is a key adware indicator'
+                'Reason': 'Benign apps avg 38,606 - low complexity is a key adware indicator'
             })
         if 'network_op' in sample.index and sample['network_op'] > 2:
             suggestions.append({
                 'Feature': 'network_op',
                 'Current Value': f"{sample['network_op']:.1f}",
                 'Suggested Change': '< 2',
-                'Reason': 'Benign apps avg 0.26 — high network ops indicate ad communication'
+                'Reason': 'Benign apps avg 0.26 - high network ops indicate ad communication'
             })
         if 'fileio_op' in sample.index and sample['fileio_op'] < 100:
             suggestions.append({
                 'Feature': 'fileio_op',
                 'Current Value': f"{sample['fileio_op']:.0f}",
                 'Suggested Change': '> 100',
-                'Reason': 'Benign apps avg 163 — low file I/O typical of adware'
+                'Reason': 'Benign apps avg 163 - low file I/O typical of adware'
             })
         if 'no_action' in sample.index and sample['no_action'] < 400:
             suggestions.append({
                 'Feature': 'no_action',
                 'Current Value': f"{sample['no_action']:.0f}",
                 'Suggested Change': '> 400',
-                'Reason': 'Benign apps avg 831 — more exception handlers indicate richer code'
+                'Reason': 'Benign apps avg 831 - more action handlers indicate larger codebases'
             })
         if not suggestions:
             suggestions.append({
@@ -322,21 +315,21 @@ def get_counterfactual_suggestions(features_df, pred, idx=0):
             'Feature': 'N/A',
             'Current Value': 'N/A',
             'Suggested Change': 'N/A',
-            'Reason': '✅ App classified as BENIGN — no changes needed'
+            'Reason': '✅ App classified as BENIGN - no changes needed'
         })
-    
+
     return suggestions
 
 
 def get_llm_response(prompt, provider, api_key, context=""):
     """Get response from selected LLM provider."""
     system = (
-        "You are an Android security analyst specializing in adware detection. "
-        "You analyze results from a LightGBM-based detection system with SHAP explainability. "
+        "You are an Android security analyst specializing in adware screening. "
+        "You analyze results from a LightGBM-based screening system with SHAP explainability. "
         "Provide clear, actionable, and technically accurate insights."
     )
     full_prompt = f"{context}\n\n{prompt}" if context else prompt
-    
+
     try:
         if provider == "Anthropic Claude":
             import anthropic
@@ -348,7 +341,7 @@ def get_llm_response(prompt, provider, api_key, context=""):
                 messages=[{"role": "user", "content": full_prompt}]
             )
             return response.content[0].text
-        
+
         elif provider == "OpenAI GPT-4":
             from openai import OpenAI
             client = OpenAI(api_key=api_key)
@@ -361,7 +354,7 @@ def get_llm_response(prompt, provider, api_key, context=""):
                 max_tokens=1500
             )
             return response.choices[0].message.content
-        
+
         elif provider == "Google Gemini":
             import google.generativeai as genai
             genai.configure(api_key=api_key)
@@ -369,7 +362,7 @@ def get_llm_response(prompt, provider, api_key, context=""):
             return model.generate_content(
                 f"{system}\n\n{full_prompt}"
             ).text
-    
+
     except Exception as e:
         return f"⚠️ Error: {str(e)}\n\nPlease check your API key and try again."
 
@@ -378,10 +371,10 @@ def get_llm_response(prompt, provider, api_key, context=""):
 # MAIN APP
 # ==========================================
 def main():
-    
+
     # Header
     st.markdown(
-        "<h1 style='text-align:center'>🛡️ Android Adware Detection System</h1>",
+        "<h1 style='text-align:center'>🛡️ Android Adware Screening System</h1>",
         unsafe_allow_html=True
     )
     st.markdown(
@@ -389,14 +382,14 @@ def main():
         "Powered by LightGBM + SHAP Explainable AI | 99.32% Accuracy</p>",
         unsafe_allow_html=True
     )
-    
+
     # ==========================================
     # SIDEBAR
     # ==========================================
     with st.sidebar:
         st.image("https://img.icons8.com/color/96/android-os.png", width=80)
         st.markdown("## ⚙️ Configuration")
-        
+
         llm_provider = st.selectbox(
             "Select AI Provider",
             ["Anthropic Claude", "OpenAI GPT-4", "Google Gemini"]
@@ -406,12 +399,12 @@ def main():
             type="password",
             placeholder="Enter your API key..."
         )
-        
+
         if api_key:
             st.success(f"✓ {llm_provider} configured")
         else:
             st.info("Add API key to enable AI chat features")
-        
+
         st.markdown("---")
         st.markdown("### 📊 Model Information")
         if MODEL is not None:
@@ -425,20 +418,11 @@ def main():
         else:
             st.error("✗ Model not loaded")
             st.info("Ensure adware_model_22features.joblib is in the app directory")
-        
+
         st.markdown("---")
         st.markdown("### 🔗 Resources")
-        st.markdown("[📂 GitHub Repository](https://github.com/parisahjb/Cybersecurity-Adware-Detection)")
         st.markdown("[📥 Feature Extraction Tool](https://github.com/sealuzh/user_quality)")
-        
-        st.markdown("---")
-        st.markdown("### 📄 Citation")
-        st.markdown("""
-        <small>Hajibabaee, P., Elish, K., Malekzadeh, M., & Aljamaan, H. (2025). 
-        <em>Explainable Machine Learning for Android Adware Detection.</em> 
-        Computers & Security.</small>
-        """, unsafe_allow_html=True)
-    
+
     # ==========================================
     # SESSION STATE
     # ==========================================
@@ -448,20 +432,20 @@ def main():
         st.session_state.features = None
     if 'chat' not in st.session_state:
         st.session_state.chat = []
-    
+
     # ==========================================
     # TABS
     # ==========================================
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🔍 Detection",
+        "🔍 Screening",
         "📊 Explainability",
         "🤖 AI Chat",
         "📋 Batch Analysis",
         "📄 Report"
     ])
-    
+
     # ==========================================
-    # TAB 1: DETECTION
+    # TAB 1: SCREENING
     # ==========================================
     with tab1:
         st.markdown("### 📱 Input Data")
@@ -472,13 +456,13 @@ def main():
             'Android Quality Metrics Tool</a> by Grano et al.</div>',
             unsafe_allow_html=True
         )
-        
+
         input_method = st.radio(
             "Select Input Method:",
             ["📂 Upload CSV", "📊 Load Sample Data", "✏️ Manual Input"],
             horizontal=True
         )
-        
+
         # CSV Upload
         if input_method == "📂 Upload CSV":
             uploaded = st.file_uploader(
@@ -489,7 +473,7 @@ def main():
             if uploaded:
                 st.session_state.features = pd.read_csv(uploaded)
                 st.success(f"✓ Loaded {len(st.session_state.features)} sample(s)")
-        
+
         # Sample Data
         elif input_method == "📊 Load Sample Data":
             st.markdown("Load pre-extracted sample data for demonstration.")
@@ -499,7 +483,7 @@ def main():
                     st.success(f"✓ Loaded {len(st.session_state.features)} sample(s)")
                 else:
                     st.error("sample_test_data.csv not found in repository")
-        
+
         # Manual Input
         elif input_method == "✏️ Manual Input":
             st.markdown("#### Enter Feature Values")
@@ -507,10 +491,10 @@ def main():
                 "*Enter values for each feature. "
                 "Refer to descriptions for guidance.*"
             )
-            
+
             manual_data = {}
             col1, col2, col3 = st.columns(3)
-            
+
             with col1:
                 st.markdown("**📐 Code Complexity Metrics**")
                 manual_data['cyclomatic'] = st.number_input(
@@ -550,7 +534,7 @@ def main():
                     'apd', value=0.0, format="%.2f",
                     help=FEATURE_DESCRIPTIONS['apd']
                 )
-            
+
             with col2:
                 st.markdown("**⚙️ Behavioral Features**")
                 manual_data['network_op'] = st.number_input(
@@ -569,7 +553,7 @@ def main():
                     'no_action', value=200.0, format="%.1f",
                     help=FEATURE_DESCRIPTIONS['no_action']
                 )
-            
+
             with col3:
                 st.markdown("**📡 Android API Calls**")
                 manual_data['start_activity'] = st.number_input(
@@ -608,55 +592,55 @@ def main():
                     'start_search', value=0.0, format="%.1f",
                     help=FEATURE_DESCRIPTIONS['start_search']
                 )
-            
+
             if st.button("✅ Confirm Manual Input", type="primary"):
                 st.session_state.features = pd.DataFrame([manual_data])
                 st.success("✓ Manual input ready for analysis")
-        
-        # Detection Button
+
+        # Screening Button
         st.markdown("---")
         if st.session_state.features is not None:
             st.info(
                 f"📊 **{len(st.session_state.features)} sample(s) ready for analysis**"
             )
-            
+
             with st.expander("👁️ Preview Data"):
                 st.dataframe(
                     st.session_state.features.head(5),
                     use_container_width=True
                 )
-            
+
             if st.button(
-                "🔍 RUN ADWARE DETECTION",
+                "🔍 RUN ADWARE SCREENING",
                 type="primary",
                 use_container_width=True
             ):
                 with st.spinner("Analyzing application features..."):
                     pred, prob = get_prediction(st.session_state.features)
-                
+
                 if pred is not None:
                     st.session_state.results = {'pred': pred, 'prob': prob}
                     st.success(
-                        f"✓ Detection complete! "
-                        f"{'🚨 ADWARE DETECTED' if pred[0] == 1 else '✅ BENIGN'}"
+                        f"✓ Screening complete! "
+                        f"{'🚨 FLAGGED AS ADWARE' if pred[0] == 1 else '✅ BENIGN'}"
                     )
                 else:
-                    st.error("Detection failed. Check model and feature names.")
-        
+                    st.error("Screening failed. Check model and feature names.")
+
         # Results Display
         if st.session_state.results is not None:
             st.markdown("---")
-            st.markdown("### 🎯 Detection Results")
-            
+            st.markdown("### 🎯 Screening Results")
+
             pred = st.session_state.results['pred']
             prob = st.session_state.results['prob']
-            
+
             col1, col2, col3 = st.columns(3)
-            
+
             with col1:
                 if pred[0] == 1:
                     st.markdown(
-                        '<div class="adware-card">🚨 ADWARE DETECTED</div>',
+                        '<div class="adware-card">🚨 FLAGGED AS ADWARE</div>',
                         unsafe_allow_html=True
                     )
                     risk_level = (
@@ -671,34 +655,34 @@ def main():
                         unsafe_allow_html=True
                     )
                     st.markdown(
-                        "<center><b>No adware behavior detected</b></center>",
+                        "<center><b>No adware behavior identified</b></center>",
                         unsafe_allow_html=True
                     )
-            
+
             with col2:
                 st.plotly_chart(
                     create_gauge(max(prob[0]) * 100, "Confidence", "#1E88E5"),
                     use_container_width=True
                 )
-            
+
             with col3:
                 color = "#ff4444" if prob[0][1] > 0.5 else "#44aa44"
                 st.plotly_chart(
                     create_gauge(prob[0][1] * 100, "Adware Probability", color),
                     use_container_width=True
                 )
-            
+
             # Batch summary
             if len(pred) > 1:
                 st.markdown("### 📊 Batch Summary")
                 col1, col2, col3, col4 = st.columns(4)
                 col1.metric("Total Samples", len(pred))
-                col2.metric("Adware Detected", int(sum(pred)),
+                col2.metric("Adware Flagged", int(sum(pred)),
                            delta=f"{sum(pred)/len(pred)*100:.1f}%")
                 col3.metric("Benign", int(len(pred) - sum(pred)))
-                col4.metric("Detection Rate",
+                col4.metric("Flagged Rate",
                            f"{sum(pred)/len(pred)*100:.1f}%")
-            
+
             # Feature importance
             if hasattr(MODEL, 'feature_importances_'):
                 st.markdown("### 📈 Feature Importance")
@@ -709,7 +693,7 @@ def main():
                     'Feature': available[:len(imp_vals)],
                     'Importance': imp_vals
                 }).sort_values('Importance', ascending=True).tail(15)
-                
+
                 fig = px.bar(
                     imp_df, x='Importance', y='Feature',
                     orientation='h',
@@ -719,7 +703,7 @@ def main():
                 )
                 fig.update_layout(height=450, showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
-    
+
     # ==========================================
     # TAB 2: EXPLAINABILITY
     # ==========================================
@@ -730,30 +714,30 @@ def main():
             "feature's contribution to the classification decision, "
             "providing both local and global interpretability."
         )
-        
+
         if st.session_state.results is None:
-            st.info("👆 Run detection first (Detection tab) to see explanations")
+            st.info("👆 Run screening first (Screening tab) to see explanations")
         else:
             pred = st.session_state.results['pred']
             prob = st.session_state.results['prob']
             features = st.session_state.features
-            
+
             # Sample selector
             if len(features) > 1:
                 sample_idx = st.selectbox(
                     "Select Sample to Analyze:",
                     range(len(features)),
                     format_func=lambda x: (
-                        f"Sample {x+1} — "
+                        f"Sample {x+1} - "
                         f"{'🚨 ADWARE' if pred[x] == 1 else '✅ BENIGN'} "
                         f"({prob[x][1]*100:.1f}% adware probability)"
                     )
                 )
             else:
                 sample_idx = 0
-            
+
             col1, col2 = st.columns(2)
-            
+
             # SHAP Waterfall
             with col1:
                 st.markdown("#### SHAP Feature Contributions")
@@ -766,27 +750,27 @@ def main():
                     available = [f for f in FEATURE_NAMES
                                 if f in features.columns]
                     X = features[available]
-                    
+
                     if SCALER:
                         X_scaled = pd.DataFrame(
                             SCALER.transform(X), columns=available
                         )
                     else:
                         X_scaled = X.reset_index(drop=True)
-                    
+
                     explainer = shap.TreeExplainer(MODEL)
                     shap_vals = explainer.shap_values(X_scaled)
-                    
+
                     if isinstance(shap_vals, list):
                         sv = shap_vals[1][sample_idx]
                     else:
                         sv = shap_vals[sample_idx]
-                    
+
                     # Top 10 by absolute value
                     top_idx = np.argsort(np.abs(sv))[::-1][:10]
                     top_features = [available[i] for i in top_idx]
                     top_values = [sv[i] for i in top_idx]
-                    
+
                     fig = go.Figure(go.Bar(
                         y=top_features[::-1],
                         x=top_values[::-1],
@@ -799,13 +783,13 @@ def main():
                         textposition='outside'
                     ))
                     fig.update_layout(
-                        title='SHAP Values — Top 10 Features',
+                        title='SHAP Values - Top 10 Features',
                         xaxis_title='SHAP Value (Impact on Adware Prediction)',
                         height=420,
                         margin=dict(l=10, r=60, t=40, b=20)
                     )
                     st.plotly_chart(fig, use_container_width=True)
-                    
+
                     # Show mean absolute SHAP
                     mean_abs = np.abs(sv).sum()
                     top_contribution = (
@@ -816,7 +800,7 @@ def main():
                         f"Top feature ({top_features[0]}) accounts for "
                         f"{top_contribution:.1f}% of total SHAP magnitude"
                     )
-                    
+
                 except ImportError:
                     st.warning(
                         "SHAP library not installed. "
@@ -824,7 +808,7 @@ def main():
                     )
                 except Exception as e:
                     st.warning(f"SHAP calculation error: {e}")
-            
+
             # Radar Chart
             with col2:
                 st.markdown("#### Feature Profile Comparison")
@@ -836,8 +820,8 @@ def main():
                 if radar_fig:
                     st.plotly_chart(radar_fig, use_container_width=True)
                 else:
-                    st.warning("Radar chart unavailable — missing key features")
-            
+                    st.warning("Radar chart unavailable - missing key features")
+
             # Counterfactual Analysis
             st.markdown("---")
             st.markdown("#### 🔄 Counterfactual Analysis")
@@ -854,7 +838,7 @@ def main():
                     use_container_width=True,
                     hide_index=True
                 )
-            
+
             # Feature Details Table
             st.markdown("---")
             st.markdown("#### 📋 Feature Details")
@@ -865,26 +849,26 @@ def main():
                     table_data.append({
                         'Feature': f,
                         'Value': f"{float(sample[f]):.4f}",
-                        'Description': FEATURE_DESCRIPTIONS.get(f, '—'),
-                        'Benign Avg': TYPICAL_VALUES['benign'].get(f, '—'),
-                        'Adware Avg': TYPICAL_VALUES['adware'].get(f, '—')
+                        'Description': FEATURE_DESCRIPTIONS.get(f, '-'),
+                        'Benign Avg': TYPICAL_VALUES['benign'].get(f, '-'),
+                        'Adware Avg': TYPICAL_VALUES['adware'].get(f, '-')
                     })
             st.dataframe(
                 pd.DataFrame(table_data),
                 use_container_width=True,
                 hide_index=True
             )
-    
+
     # ==========================================
     # TAB 3: AI CHAT
     # ==========================================
     with tab3:
-        st.markdown(f"### 🤖 AI Security Analyst — {llm_provider}")
+        st.markdown(f"### 🤖 AI Security Analyst - {llm_provider}")
         st.markdown(
-            "Ask questions about the detection results, feature values, "
+            "Ask questions about the screening results, feature values, "
             "or Android adware behavior."
         )
-        
+
         if not api_key:
             st.warning(
                 "⚠️ Enter your API key in the sidebar to enable AI features. "
@@ -899,7 +883,7 @@ def main():
                 prob = st.session_state.results['prob']
                 feat = st.session_state.features.iloc[0]
                 context = (
-                    f"Detection Result: {'ADWARE' if pred[0] == 1 else 'BENIGN'}\n"
+                    f"Screening Result: {'ADWARE' if pred[0] == 1 else 'BENIGN'}\n"
                     f"Confidence: {max(prob[0])*100:.1f}%\n"
                     f"Adware Probability: {prob[0][1]*100:.1f}%\n"
                     f"Key Feature Values:\n"
@@ -915,36 +899,36 @@ def main():
                 )
                 st.markdown(
                     '<div class="info-box">💡 AI has context about your '
-                    'current detection results and key feature values.</div>',
+                    'current screening results and key feature values.</div>',
                     unsafe_allow_html=True
                 )
             else:
                 st.info(
-                    "ℹ️ Run detection first for context-aware responses. "
-                    "You can still ask general questions about adware detection."
+                    "ℹ️ Run screening first for context-aware responses. "
+                    "You can still ask general questions about adware screening."
                 )
-            
+
             # Quick action buttons
             st.markdown("#### ⚡ Quick Actions")
             col1, col2, col3 = st.columns(3)
-            
-            if col1.button("📝 Explain This Detection",
+
+            if col1.button("📝 Explain This Result",
                           use_container_width=True):
                 if st.session_state.results:
                     with st.spinner("Generating explanation..."):
                         r = get_llm_response(
-                            "Explain this adware detection result in detail. "
+                            "Explain this adware screening result in detail. "
                             "What are the key indicators and what do they mean "
                             "for this application's behavior?",
                             llm_provider, api_key, context
                         )
                         st.session_state.chat.append(
-                            ("Explain This Detection", r)
+                            ("Explain This Result", r)
                         )
                         st.rerun()
                 else:
-                    st.warning("Please run detection first!")
-            
+                    st.warning("Please run screening first!")
+
             if col2.button("⚠️ Security Advisory",
                           use_container_width=True):
                 if st.session_state.results:
@@ -959,8 +943,8 @@ def main():
                         st.session_state.chat.append(("Security Advisory", r))
                         st.rerun()
                 else:
-                    st.warning("Please run detection first!")
-            
+                    st.warning("Please run screening first!")
+
             if col3.button("🔍 Technical Analysis",
                           use_container_width=True):
                 if st.session_state.results:
@@ -977,8 +961,8 @@ def main():
                         )
                         st.rerun()
                 else:
-                    st.warning("Please run detection first!")
-            
+                    st.warning("Please run screening first!")
+
             # Free-form chat
             st.markdown("---")
             st.markdown("#### 💬 Ask a Question")
@@ -994,7 +978,7 @@ def main():
                     r = get_llm_response(q, llm_provider, api_key, context)
                     st.session_state.chat.append((q, r))
                     st.rerun()
-            
+
             # Chat history
             if st.session_state.chat:
                 st.markdown("---")
@@ -1007,28 +991,28 @@ def main():
                                     else f"**Q: {question}**",
                                     expanded=True):
                         st.markdown(f"**🤖 AI:** {answer}")
-                
+
                 if st.button("🗑️ Clear Conversation"):
                     st.session_state.chat = []
                     st.rerun()
-    
+
     # ==========================================
     # TAB 4: BATCH ANALYSIS
     # ==========================================
     with tab4:
         st.markdown("### 📋 Batch Analysis Results")
-        
+
         if st.session_state.results is None:
-            st.info("👆 Run detection first (Detection tab) to see batch results")
+            st.info("👆 Run screening first (Screening tab) to see batch results")
         else:
             pred = st.session_state.results['pred']
             prob = st.session_state.results['prob']
-            
+
             # Summary metrics
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Total Samples", len(pred))
             col2.metric(
-                "Adware Detected", int(sum(pred)),
+                "Adware Flagged", int(sum(pred)),
                 delta=f"{sum(pred)/len(pred)*100:.1f}% of total"
             )
             col3.metric("Benign", int(len(pred) - sum(pred)))
@@ -1036,18 +1020,18 @@ def main():
                 "Avg Confidence",
                 f"{np.mean([max(p) for p in prob])*100:.1f}%"
             )
-            
+
             # Risk breakdown
             high_risk = sum(1 for p in prob if p[1] >= 0.8)
             med_risk = sum(1 for p in prob if 0.5 <= p[1] < 0.8)
             low_risk = sum(1 for p in prob if p[1] < 0.5)
-            
+
             st.markdown("#### Risk Distribution")
             col1, col2, col3 = st.columns(3)
             col1.metric("🔴 High Risk (≥80%)", high_risk)
             col2.metric("🟡 Medium Risk (50-80%)", med_risk)
             col3.metric("🟢 Low Risk (<50%)", low_risk)
-            
+
             # Charts
             col1, col2 = st.columns(2)
             with col1:
@@ -1055,11 +1039,11 @@ def main():
                     values=[int(sum(pred)), int(len(pred) - sum(pred))],
                     names=['Adware', 'Benign'],
                     color_discrete_sequence=['#ff4444', '#44aa44'],
-                    title='Detection Distribution',
+                    title='Screening Distribution',
                     hole=0.4
                 )
                 st.plotly_chart(fig, use_container_width=True)
-            
+
             with col2:
                 fig = px.histogram(
                     x=[p[1] * 100 for p in prob],
@@ -1071,7 +1055,7 @@ def main():
                 fig.add_vline(x=50, line_dash='dash',
                              line_color='red', annotation_text='Threshold')
                 st.plotly_chart(fig, use_container_width=True)
-            
+
             # Detailed results table
             st.markdown("#### 📊 Detailed Results")
             df = st.session_state.features.copy()
@@ -1084,7 +1068,7 @@ def main():
                 ('MEDIUM' if p[1] >= 0.5 else 'LOW')
                 for p in prob
             ]
-            
+
             display_cols = (
                 ['Prediction', 'Adware Prob (%)', 'Risk Level'] +
                 [c for c in ['cyclomatic', 'network_op', 'fileio_op',
@@ -1096,47 +1080,47 @@ def main():
                 use_container_width=True,
                 hide_index=True
             )
-            
+
             # Download
             csv = df.to_csv(index=False)
             st.download_button(
                 "📥 Download Full Results (CSV)",
                 csv,
-                f"adware_detection_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                f"adware_screening_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 "text/csv",
                 use_container_width=True
             )
-    
+
     # ==========================================
     # TAB 5: REPORT
     # ==========================================
     with tab5:
-        st.markdown("### 📄 Detection Report")
-        
+        st.markdown("### 📄 Screening Report")
+
         if st.session_state.results is None:
-            st.info("👆 Run detection first to generate a report")
+            st.info("👆 Run screening first to generate a report")
         else:
             report_type = st.selectbox(
                 "Select Report Type:",
                 ["Executive Summary", "Technical Report", "Security Advisory"]
             )
-            
+
             if st.button("📄 Generate Report", type="primary",
                         use_container_width=True):
                 pred = st.session_state.results['pred']
                 prob = st.session_state.results['prob']
                 feat = st.session_state.features.iloc[0]
-                
+
                 high_risk = sum(1 for p in prob if p[1] >= 0.8)
                 med_risk = sum(1 for p in prob if 0.5 <= p[1] < 0.8)
                 low_risk = sum(1 for p in prob if p[1] < 0.5)
-                
+
                 report = f"""
-# 🛡️ Android Adware Detection Report
+# 🛡️ Android Adware Screening Report
 
 **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
 **Report Type:** {report_type}  
-**System:** Android Adware Detection v2.2 (LightGBM, 99.32% accuracy)
+**System:** Android Adware Screening (LightGBM, 99.32% accuracy)
 
 ---
 
@@ -1145,7 +1129,7 @@ def main():
 | Metric | Value |
 |--------|-------|
 | Total Samples Analyzed | {len(pred)} |
-| Adware Detected | {int(sum(pred))} ({sum(pred)/len(pred)*100:.1f}%) |
+| Adware Flagged | {int(sum(pred))} ({sum(pred)/len(pred)*100:.1f}%) |
 | Benign Applications | {int(len(pred)-sum(pred))} ({(len(pred)-sum(pred))/len(pred)*100:.1f}%) |
 | Average Confidence | {np.mean([max(p) for p in prob])*100:.1f}% |
 | High Risk (≥80%) | {high_risk} |
@@ -1168,7 +1152,7 @@ def main():
 
 ## ⚠️ Risk Assessment
 
-{'🚨 **HIGH RISK:** Adware detected with high confidence. Immediate action recommended.' 
+{'🚨 **HIGH RISK:** Adware flagged with high confidence. Immediate action recommended.' 
  if prob[0][1] >= 0.8 else
  '🟡 **MEDIUM RISK:** Possible adware. Manual review recommended.' 
  if prob[0][1] >= 0.5 else
@@ -1201,15 +1185,15 @@ def main():
 
 
 
-*Report generated by Android Adware Detection System v2.2*
+*Report generated by Android Adware Screening System*
                 """
                 st.markdown(report)
-                
+
                 # Download report
                 st.download_button(
                     "📥 Download Report (Markdown)",
                     report,
-                    f"adware_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    f"adware_screening_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
                     "text/markdown",
                     use_container_width=True
                 )
