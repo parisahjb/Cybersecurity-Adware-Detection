@@ -79,3 +79,35 @@ Trained on **24,192 Android apps** (14,149 adware, 10,043 benign) using 22 optim
 ## 📁 Input Format
 
 Your CSV file should contain these 22 features:
+
+```
+network_op, sqllite_op, fileio_op, no_action, noc, dit, lcom, cbo,
+ppiv, apd, start_activities, start_activity, start_service,
+start_action_mode, start_activity_result, start_activity_from_frag,
+start_activity_needed, start_intent_for_result, start_search,
+methods_per_class, bytecode_per_method, cyclomatic
+```
+
+Features can be extracted using the [Android Quality Metrics Tool](https://github.com/sealuzh/user_quality).
+
+---
+
+## 🛠️ Technology Stack
+
+- **Model**: LightGBM (Gradient Boosting)
+- **Explainability**: SHAP (SHapley Additive exPlanations)
+- **Frontend**: Streamlit
+- **Visualization**: Plotly
+- **LLM Integration**: Multiple provider support
+
+---
+
+## 📂 Repository Structure
+
+```
+├── app.py                          # Main Streamlit application
+├── adware_model_22features.joblib  # Trained LightGBM model
+├── sample_test_data.csv            # Sample data for testing
+├── requirements.txt                # Python dependencies
+└── README.md                       # This file
+```
